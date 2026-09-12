@@ -1,0 +1,25 @@
+﻿# render.yaml - Render configuration for the SIEM Copilot backend.
+#
+# Environment variables must be configured in the Render dashboard:
+#   DATABASE_URL     - Supabase PostgreSQL connection string
+#   OPENAI_API_KEY   - optional; deterministic fallback is used when absent
+#   CORS_ORIGINS     - JSON list of allowed origins
+#
+# The $PORT variable is provided automatically by Render.
+
+services:
+  - type: web
+    name: siem-copilot-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
