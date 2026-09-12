@@ -256,3 +256,71 @@ def test_copilot_evidence_grounding_single_scanner_alert(client, db_session):
     assert "consider blocking or restricting" in recs
     assert "after analyst validation" in recs
 
+# ---------------------------------------------------------------------------
+# CORS configuration tests
+# ---------------------------------------------------------------------------
+
+def test_cors_preflight_vercel_origin(client):
+    """Preflight from the Vercel production origin must be accepted."""
+    res = client.options(
+        "/api/dashboard",
+        headers={
+            "Origin": "https://siem-copilot-tawny.vercel.app",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert res.status_code in (200, 204)
+    assert res.headers.get("access-control-allow-origin") == "https://siem-copilot-tawny.vercel.app"
+
+
+def test_cors_vercel_origin_on_get(client):
+    """Simple GET from Vercel origin must have ACAO header in response."""
+    res = client.get(
+        "/health",
+        headers={"Origin": "https://siem-copilot-tawny.vercel.app"},
+    )
+    assert res.status_code == 200
+    assert res.headers.get("access-control-allow-origin") == "https://siem-copilot-tawny.vercel.app"
+
+
+def test_cors_parse_json_array():
+    """CORS_ORIGINS env var in JSON-array format must parse correctly."""
+    import json
+    from app.core.config import _parse_cors_origins
+    origins = _parse_cors_origins('["https://siem-copilot-tawny.vercel.app","http://localhost:5173"]')
+    assert "https://siem-copilot-tawny.vercel.app" in origins
+    assert "http://localhost:5173" in origins
+
+
+def test_cors_parse_bare_url():
+    """CORS_ORIGINS env var as a bare URL string must parse correctly."""
+    from app.core.config import _parse_cors_origins
+    origins = _parse_cors_origins("https://siem-copilot-tawny.vercel.app")
+    assert origins == ["https://siem-copilot-tawny.vercel.app"]
+
+
+def test_cors_parse_comma_separated():
+    """CORS_ORIGINS env var as comma-separated string must parse correctly."""
+    from app.core.config import _parse_cors_origins
+    origins = _parse_cors_origins("https://siem-copilot-tawny.vercel.app,http://localhost:5173")
+    assert "https://siem-copilot-tawny.vercel.app" in origins
+    assert "http://localhost:5173" in origins
+
+
+def test_cors_default_includes_vercel():
+    """When CORS_ORIGINS env var is absent, the Vercel origin must be in defaults."""
+    from app.core.config import _parse_cors_origins
+    origins = _parse_cors_origins("")   # empty = use defaults
+    assert "https://siem-copilot-tawny.vercel.app" in origins
+
+
+def test_cors_rejects_unknown_origin(client):
+    """An unknown origin must NOT receive an Access-Control-Allow-Origin header."""
+    res = client.get(
+        "/health",
+        headers={"Origin": "https://evil.example.com"},
+    )
+    assert res.status_code == 200
+    acao = res.headers.get("access-control-allow-origin", "")
+    assert acao != "https://evil.example.com"
