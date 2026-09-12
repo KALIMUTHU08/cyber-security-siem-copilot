@@ -1,0 +1,170 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    height: 100%;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    height: 100%;
+    margin: 0;
+    background-color: #0d1117;
+    color: #e6edf3;
+    font-family: 'IBM Plex Sans', Inter, system-ui, sans-serif;
+    line-height: 1.5;
+  }
+
+  #root {
+    height: 100%;
+  }
+
+  /* Custom scrollbar for the dark theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #161b22;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+  }
+
+  /* Focus styles */
+  :focus-visible {
+    outline: 2px solid #388bfd;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+@layer components {
+  /* Monospace elements */
+  .mono {
+    font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+    font-size: 0.8125rem;
+  }
+
+  /* Panel base */
+  .panel {
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+  }
+
+  /* Severity badge colors */
+  .badge-critical {
+    @apply bg-critical-bg border border-critical-border text-critical-text;
+  }
+  .badge-high {
+    @apply bg-high-bg border border-high-border text-high-text;
+  }
+  .badge-medium {
+    @apply bg-medium-bg border border-medium-border text-medium-text;
+  }
+  .badge-low {
+    @apply bg-low-bg border border-low-border text-low-text;
+  }
+
+  /* Status badge base */
+  .badge-status {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium;
+  }
+
+  /* AI assessment blocks */
+  .ai-block {
+    border-left: 2px solid #39c5cf;
+    background-color: #0c3c41;
+  }
+
+  /* Evidence blocks */
+  .evidence-block {
+    border-left: 2px solid #388bfd;
+    background-color: #0d2b5e;
+  }
+
+  /* Recommendation blocks */
+  .recommendation-block {
+    border-left: 2px solid #3fb950;
+    background-color: #0d2410;
+  }
+
+  /* Raw log line */
+  .raw-log-line {
+    @apply mono text-text-secondary bg-bg-app border border-border-subtle rounded px-3 py-1.5 text-2xs leading-relaxed;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  /* Clickable table rows */
+  .table-row-interactive {
+    @apply cursor-pointer transition-colors duration-150;
+  }
+  .table-row-interactive:hover {
+    background-color: #21262d;
+  }
+
+  /* Interactive timeline dots */
+  .timeline-dot {
+    @apply w-3 h-3 rounded-full border-2 flex-shrink-0;
+  }
+
+  /* Loading shimmer */
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      #21262d 25%,
+      #2d333b 50%,
+      #21262d 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Drawer overlay */
+  .drawer-overlay {
+    @apply fixed inset-0 bg-black/60 z-40;
+  }
+
+  .drawer-panel {
+    @apply fixed right-0 top-0 h-full w-full max-w-xl bg-bg-panel border-l border-border-default z-50 overflow-y-auto;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Hide scrollbar but keep scrollability */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
