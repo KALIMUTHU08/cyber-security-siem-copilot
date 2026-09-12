@@ -111,12 +111,29 @@ def test_settings_detection_rules_api(client, db_session):
 
 
 def test_analytics_api(client, db_session):
+    from datetime import date, datetime
+    from app.services.analytics_service import _format_day
+
+    # Verify _format_day handles both date objects (Postgres) and strings (SQLite)
+    assert _format_day(date(2024, 12, 24)) == "2024-12-24"
+    assert _format_day(datetime(2024, 12, 24, 10, 0)) == "2024-12-24"
+    assert _format_day("2024-12-24") == "2024-12-24"
+    assert _format_day(None) == ""
+
     res = client.get("/api/analytics?days=7")
     assert res.status_code == 200
     data = res.json()
     assert "eventsOverTime" in data
+    assert "alertsOverTime" in data
     assert "severityDistribution" in data
     assert "topSourceIps" in data
+    assert "topTargetUsers" in data
+    assert "topDetectionTypes" in data
+    assert "loginStats" in data
+    assert "incidentTrends" in data
+    assert len(data["eventsOverTime"]) == 7
+    assert len(data["alertsOverTime"]) == 7
+
 
 
 def test_threat_hunting_multiple_alerts_queries(client, db_session):

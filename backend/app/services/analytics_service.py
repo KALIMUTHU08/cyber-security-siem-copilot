@@ -19,6 +19,14 @@ from app.schemas.analytics import (
 )
 
 
+def _format_day(val) -> str:
+    if val is None:
+        return ""
+    if hasattr(val, "strftime"):
+        return val.strftime("%Y-%m-%d")
+    return str(val)[:10]
+
+
 def get_dashboard_stats(db: Session) -> DashboardStats:
     total_events = db.query(SecurityLogModel).count()
     active_alerts = db.query(AlertModel).filter(AlertModel.status.in_(["NEW", "INVESTIGATING"])).count()
@@ -76,14 +84,14 @@ def get_analytics_data(db: Session, days: int = 7) -> AnalyticsData:
     # 2. Events over time
     events_query = (
         db.query(
-            func.strftime("%Y-%m-%d", SecurityLogModel.timestamp).label("day"),
+            func.date(SecurityLogModel.timestamp).label("day"),
             func.count(SecurityLogModel.id).label("count"),
         )
         .filter(SecurityLogModel.timestamp >= start_date, SecurityLogModel.timestamp <= anchor + timedelta(days=1))
-        .group_by("day")
+        .group_by(func.date(SecurityLogModel.timestamp))
         .all()
     )
-    event_counts = {row.day: row.count for row in events_query}
+    event_counts = {_format_day(row.day): row.count for row in events_query}
     events_over_time = [
         TimeSeriesPoint(timestamp=dk, value=event_counts.get(dk, 0))
         for dk in date_keys
@@ -92,14 +100,14 @@ def get_analytics_data(db: Session, days: int = 7) -> AnalyticsData:
     # 3. Alerts over time
     alerts_query = (
         db.query(
-            func.strftime("%Y-%m-%d", AlertModel.first_seen).label("day"),
+            func.date(AlertModel.first_seen).label("day"),
             func.count(AlertModel.id).label("count"),
         )
         .filter(AlertModel.first_seen >= start_date, AlertModel.first_seen <= anchor + timedelta(days=1))
-        .group_by("day")
+        .group_by(func.date(AlertModel.first_seen))
         .all()
     )
-    alert_counts = {row.day: row.count for row in alerts_query}
+    alert_counts = {_format_day(row.day): row.count for row in alerts_query}
     alerts_over_time = [
         TimeSeriesPoint(timestamp=dk, value=alert_counts.get(dk, 0))
         for dk in date_keys
@@ -175,15 +183,15 @@ def get_analytics_data(db: Session, days: int = 7) -> AnalyticsData:
     # 8. Login Stats (failed vs successful)
     login_query = (
         db.query(
-            func.strftime("%Y-%m-%d", SecurityLogModel.timestamp).label("day"),
+            func.date(SecurityLogModel.timestamp).label("day"),
             func.sum(case((SecurityLogModel.event_type == "LOGIN_FAILED", 1), else_=0)).label("failed"),
             func.sum(case((SecurityLogModel.event_type == "LOGIN", 1), else_=0)).label("successful"),
         )
         .filter(SecurityLogModel.timestamp >= start_date)
-        .group_by("day")
+        .group_by(func.date(SecurityLogModel.timestamp))
         .all()
     )
-    login_day_map = {row.day: (row.failed or 0, row.successful or 0) for row in login_query}
+    login_day_map = {_format_day(row.day): (row.failed or 0, row.successful or 0) for row in login_query}
     login_stats = [
         LoginStats(
             timestamp=dk,
@@ -196,14 +204,14 @@ def get_analytics_data(db: Session, days: int = 7) -> AnalyticsData:
     # 9. Incident Trends
     inc_query = (
         db.query(
-            func.strftime("%Y-%m-%d", IncidentModel.first_seen).label("day"),
+            func.date(IncidentModel.first_seen).label("day"),
             func.count(IncidentModel.id).label("cnt"),
         )
         .filter(IncidentModel.first_seen >= start_date)
-        .group_by("day")
+        .group_by(func.date(IncidentModel.first_seen))
         .all()
     )
-    inc_map = {row.day: row.cnt for row in inc_query}
+    inc_map = {_format_day(row.day): row.cnt for row in inc_query}
     incident_trends = [
         TimeSeriesPoint(timestamp=dk, value=inc_map.get(dk, 0))
         for dk in date_keys
