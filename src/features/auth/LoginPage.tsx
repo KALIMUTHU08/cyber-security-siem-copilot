@@ -28,9 +28,9 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleFillDemo = (demoEmail: string, demoPw: string) => {
+  const handleFillDemo = (demoEmail: string) => {
     setEmail(demoEmail);
-    setPassword(demoPw);
+    setPassword('');
     setError(null);
   };
 
@@ -146,7 +146,7 @@ export const LoginPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => handleFillDemo('admin@siem.local', 'Admin@123456')}
+                onClick={() => handleFillDemo('admin@siem.local')}
                 className="px-2.5 py-1.5 text-left rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-cyan-500/40 transition-all cursor-pointer group"
               >
                 <div className="text-xs font-medium text-slate-200 group-hover:text-cyan-300">Default Admin</div>
@@ -155,7 +155,7 @@ export const LoginPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => handleFillDemo('analyst@siem.local', 'Analyst@123456')}
+                onClick={() => handleFillDemo('analyst@siem.local')}
                 className="px-2.5 py-1.5 text-left rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-cyan-500/40 transition-all cursor-pointer group"
               >
                 <div className="text-xs font-medium text-slate-200 group-hover:text-cyan-300">Security Analyst</div>

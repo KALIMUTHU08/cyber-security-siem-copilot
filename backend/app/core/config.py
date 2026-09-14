@@ -94,6 +94,20 @@ class Settings(BaseSettings):
     DEFAULT_ADMIN_EMAIL: str = "admin@siem.local"
     DEFAULT_ADMIN_PASSWORD: str = ""  # MUST be set via DEFAULT_ADMIN_PASSWORD env var
 
+    # Optional demo Security Analyst account provisioned at startup.
+    # Set DEFAULT_ANALYST_PASSWORD to enable; leave empty to skip provisioning.
+    DEFAULT_ANALYST_EMAIL: str = "analyst@siem.local"
+    DEFAULT_ANALYST_PASSWORD: str = ""  # Set via env var to provision demo analyst
+
+    # One-time password sync flag.
+    # Set BOOTSTRAP_ADMIN_PASSWORD_SYNC=true when the admin user already exists in
+    # the DB but its stored hash does not match the current DEFAULT_ADMIN_PASSWORD
+    # (e.g. after rotating the env var on a live deployment).
+    # The startup bootstrap will then re-hash and update the stored password.
+    # IMPORTANT: Unset this variable and redeploy immediately after the one-time
+    # sync completes — it must NOT remain true in steady-state production.
+    BOOTSTRAP_ADMIN_PASSWORD_SYNC: bool = False
+
     # Login brute-force protection: max failures before 5-minute lockout
     LOGIN_MAX_FAILURES: int = 5
     LOGIN_LOCKOUT_SECONDS: int = 300

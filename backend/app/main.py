@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         seed_default_rules_if_empty(db)
-        _seed_default_admin_if_empty(db)
+        _bootstrap_demo_accounts(db)
         log_count = db.query(SecurityLogModel).count()
         if log_count == 0:
             sample_file = Path(__file__).resolve().parent.parent / "data" / "samples" / "demo_security_logs.csv"
@@ -45,40 +45,126 @@ async def lifespan(app: FastAPI):
     # Shutdown logic if needed
 
 
-def _seed_default_admin_if_empty(db) -> None:
-    """Create the default ADMIN account on first startup (empty users table).
-    Credentials come from env vars: DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD.
-    Logs a clear reminder to change the password if the default is being used.
+def _bootstrap_demo_accounts(db) -> None:
+    """
+    Bootstrap demo/admin accounts at startup.
+
+    A) Admin — Fresh DB (admin email not found):
+       Requires DEFAULT_ADMIN_PASSWORD to be explicitly set via env var.
+       If missing, logs a clear error and skips creation — no hardcoded
+       fallback password is ever written to the database.
+
+    B) Admin — Existing DB + BOOTSTRAP_ADMIN_PASSWORD_SYNC=true:
+       Finds the admin row by DEFAULT_ADMIN_EMAIL and re-hashes its stored
+       password to match the current DEFAULT_ADMIN_PASSWORD.
+       BOOTSTRAP_ADMIN_PASSWORD_SYNC ONLY affects the admin account.
+       Remove this env var and redeploy immediately after the one-time sync.
+
+    C) Admin — Existing DB, sync disabled (normal steady-state):
+       Skips silently. Never mutates the existing admin password.
+
+    D) Analyst — controlled separately, never touched by sync flag:
+       If DEFAULT_ANALYST_PASSWORD is set and the analyst account does not
+       yet exist, creates it as SECURITY_ANALYST.
+       If the analyst account already exists, it is NEVER modified
+       automatically — a deliberate password reset via the admin UI or
+       a separate explicit mechanism must be used instead.
+       If DEFAULT_ANALYST_PASSWORD is empty, skips silently.
+
+    Security guarantees:
+    - No hardcoded default password is ever persisted.
+    - BOOTSTRAP_ADMIN_PASSWORD_SYNC never touches analyst or any other user.
+    - Analyst password is never overwritten automatically.
+    - Plaintext passwords are never stored, logged, or returned.
+    - Works identically against SQLite (local/tests) and PostgreSQL (production).
     """
     from app.models.user import UserModel  # local import avoids circular at module level
     from app.core.security import hash_password
     import uuid
     from datetime import datetime
 
-    if db.query(UserModel).count() > 0:
+    # ------------------------------------------------------------------ Admin
+    admin_email = settings.DEFAULT_ADMIN_EMAIL
+    admin_password = settings.DEFAULT_ADMIN_PASSWORD
+    sync_flag = settings.BOOTSTRAP_ADMIN_PASSWORD_SYNC
+
+    existing_admin = db.query(UserModel).filter(UserModel.email == admin_email).first()
+
+    if existing_admin is None:
+        # Fresh DB — admin account does not exist yet.
+        if not admin_password:
+            # Fail safely: refuse to create an account with no configured password.
+            # A hardcoded fallback would create a publicly-known credential.
+            print(
+                "⚠️  BOOTSTRAP SKIPPED: DEFAULT_ADMIN_PASSWORD is not set. "
+                "Set it via environment variable and restart to provision the admin account. "
+                "The application will start, but no admin account will be available until then."
+            )
+            return
+        admin = UserModel(
+            id=str(uuid.uuid4()),
+            email=admin_email,
+            full_name="System Administrator",
+            hashed_password=hash_password(admin_password),
+            role="ADMIN",
+            is_active=True,
+            created_at=datetime.utcnow(),
+        )
+        db.add(admin)
+        db.commit()
+        print(f"✓  Admin account created: {admin_email}")
+    elif sync_flag:
+        # One-time admin password sync — BOOTSTRAP_ADMIN_PASSWORD_SYNC=true only.
+        if not admin_password:
+            print(
+                "⚠️  BOOTSTRAP_ADMIN_PASSWORD_SYNC=true but DEFAULT_ADMIN_PASSWORD is empty — "
+                "skipping admin password sync to avoid locking out the account. "
+                "Set DEFAULT_ADMIN_PASSWORD and restart."
+            )
+        else:
+            existing_admin.hashed_password = hash_password(admin_password)
+            db.commit()
+            print(
+                f"✓  Admin password re-hashed for {admin_email} (BOOTSTRAP_ADMIN_PASSWORD_SYNC). "
+                "IMPORTANT: Remove BOOTSTRAP_ADMIN_PASSWORD_SYNC from env vars and redeploy now."
+            )
+    else:
+        # Steady state — admin exists, no sync requested. Leave password untouched.
+        print(f"✓  Admin account {admin_email} exists — no changes.")
+        if not admin_password:
+            print(
+                "   ⚠️  DEFAULT_ADMIN_PASSWORD is not configured. "
+                "If you cannot log in, set it and redeploy with BOOTSTRAP_ADMIN_PASSWORD_SYNC=true."
+            )
+
+    # ---------------------------------------------------------------- Analyst
+    # Analyst provisioning is independent of the admin sync flag.
+    # An existing analyst's password is NEVER overwritten automatically.
+    analyst_email = settings.DEFAULT_ANALYST_EMAIL
+    analyst_password = settings.DEFAULT_ANALYST_PASSWORD
+
+    if not analyst_password:
+        # Opt-in only — skip silently if not configured.
         return
 
-    email = settings.DEFAULT_ADMIN_EMAIL
-    password = settings.DEFAULT_ADMIN_PASSWORD
-    if not password:
-        password = "ChangeMe@SIEM2024!"  # fallback ONLY if env var not set
-        print("⚠️  DEFAULT_ADMIN_PASSWORD not set — using insecure default. CHANGE IMMEDIATELY after first login.")
-    else:
-        print("✓  Admin account seeded from DEFAULT_ADMIN_PASSWORD env var.")
+    existing_analyst = db.query(UserModel).filter(UserModel.email == analyst_email).first()
 
-    admin = UserModel(
-        id=str(uuid.uuid4()),
-        email=email,
-        full_name="System Administrator",
-        hashed_password=hash_password(password),
-        role="ADMIN",
-        is_active=True,
-        created_at=datetime.utcnow(),
-    )
-    db.add(admin)
-    db.commit()
-    print(f"✓  Default admin account created: {email}")
-    print("   ⚠️  REMINDER: Change the default admin password after first login!")
+    if existing_analyst is None:
+        analyst = UserModel(
+            id=str(uuid.uuid4()),
+            email=analyst_email,
+            full_name="Security Analyst",
+            hashed_password=hash_password(analyst_password),
+            role="SECURITY_ANALYST",
+            is_active=True,
+            created_at=datetime.utcnow(),
+        )
+        db.add(analyst)
+        db.commit()
+        print(f"✓  Demo analyst account created: {analyst_email}")
+    else:
+        # Analyst exists — never auto-overwrite. Use admin UI or a deliberate reset.
+        print(f"✓  Analyst account {analyst_email} exists — password unchanged.")
 
 
 app = FastAPI(
