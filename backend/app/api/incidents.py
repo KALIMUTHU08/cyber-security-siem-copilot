@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.permissions import Permission, require_permission
 from app.database.session import get_db
 from app.models.incident import IncidentModel
+from app.models.user import UserModel
 from app.schemas.incident import Incident, TimelineEvent
 from app.schemas.common import PaginatedResult, RiskScore
 
@@ -53,6 +55,7 @@ def to_incident_schema(i: IncidentModel) -> Incident:
 def list_incidents(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100, alias="pageSize"),
+    _: UserModel = Depends(require_permission(Permission.INCIDENTS_VIEW)),
     db: Session = Depends(get_db),
 ):
     query = db.query(IncidentModel)
@@ -73,7 +76,11 @@ def list_incidents(
 
 
 @router.get("/{incident_id}", response_model=Incident)
-def get_incident_by_id(incident_id: str, db: Session = Depends(get_db)):
+def get_incident_by_id(
+    incident_id: str,
+    _: UserModel = Depends(require_permission(Permission.INCIDENTS_VIEW)),
+    db: Session = Depends(get_db),
+):
     incident = db.query(IncidentModel).filter(IncidentModel.id == incident_id).first()
     if not incident:
         raise HTTPException(status_code=404, detail=f"Incident {incident_id} not found")

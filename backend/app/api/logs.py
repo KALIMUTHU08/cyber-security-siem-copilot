@@ -3,8 +3,10 @@ from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
+from app.core.permissions import Permission, require_permission
 from app.database.session import get_db
 from app.models.log import SecurityLogModel
+from app.models.user import UserModel
 from app.schemas.log import SecurityLog, BatchIdsRequest, IngestStats
 from app.schemas.common import PaginatedResult
 from app.ingestion.parser import parse_upload_file
@@ -24,6 +26,7 @@ def list_logs(
     device: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100, alias="pageSize"),
+    _: UserModel = Depends(require_permission(Permission.LOGS_VIEW)),
     db: Session = Depends(get_db),
 ):
     query = db.query(SecurityLogModel)
@@ -71,7 +74,11 @@ def list_logs(
 
 
 @router.post("/batch", response_model=List[SecurityLog])
-def get_logs_by_ids_post(request: BatchIdsRequest, db: Session = Depends(get_db)):
+def get_logs_by_ids_post(
+    request: BatchIdsRequest,
+    _: UserModel = Depends(require_permission(Permission.LOGS_VIEW)),
+    db: Session = Depends(get_db),
+):
     if not request.ids:
         return []
     logs = db.query(SecurityLogModel).filter(SecurityLogModel.id.in_(request.ids)).all()
@@ -79,7 +86,11 @@ def get_logs_by_ids_post(request: BatchIdsRequest, db: Session = Depends(get_db)
 
 
 @router.get("/batch", response_model=List[SecurityLog])
-def get_logs_by_ids_get(ids: str = Query(""), db: Session = Depends(get_db)):
+def get_logs_by_ids_get(
+    ids: str = Query(""),
+    _: UserModel = Depends(require_permission(Permission.LOGS_VIEW)),
+    db: Session = Depends(get_db),
+):
     id_list = [i.strip() for i in ids.split(",") if i.strip()]
     if not id_list:
         return []
@@ -88,7 +99,11 @@ def get_logs_by_ids_get(ids: str = Query(""), db: Session = Depends(get_db)):
 
 
 @router.get("/{log_id}", response_model=SecurityLog)
-def get_log_by_id(log_id: str, db: Session = Depends(get_db)):
+def get_log_by_id(
+    log_id: str,
+    _: UserModel = Depends(require_permission(Permission.LOGS_VIEW)),
+    db: Session = Depends(get_db),
+):
     log = db.query(SecurityLogModel).filter(SecurityLogModel.id == log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail=f"Log {log_id} not found")
@@ -96,7 +111,11 @@ def get_log_by_id(log_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/upload", response_model=IngestStats)
-async def upload_log_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_log_file(
+    file: UploadFile = File(...),
+    _: UserModel = Depends(require_permission(Permission.LOGS_INGEST)),
+    db: Session = Depends(get_db),
+):
     content_bytes = await file.read()
     records, errors = parse_upload_file(file.filename or "upload.csv", content_bytes)
 

@@ -19,6 +19,7 @@ import {
 } from '../../components/ui';
 import { formatTimestamp, formatIncidentTitle, pluralize, riskLevelColor } from '../../lib/utils';
 import type { Incident, SecurityAlert, SecurityLog } from '../../types';
+import { ResponseActionsPanel } from './ResponseActionsPanel';
 
 // Attack chain step visualization
 function AttackChainStep({
@@ -337,6 +338,14 @@ export function IncidentDetailPage() {
               <RecommendationsBlock items={incident.recommendedNextSteps} />
             </div>
           </Panel>
+
+          {/* (e) AI-Assisted Response Actions */}
+          <ResponseActionsPanel
+            incidentId={incident.id}
+            incidentSourceIp={incident.sourceIp}
+            incidentTargetUser={incident.targetUser}
+            incidentDevice={incident.affectedDevice}
+          />
         </div>
 
         {/* Sidebar — right col */}

@@ -3,8 +3,10 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
+from app.core.permissions import Permission, require_permission
 from app.database.session import get_db
 from app.models.alert import AlertModel
+from app.models.user import UserModel
 from app.schemas.alert import SecurityAlert, AlertStatusUpdate
 from app.schemas.log import BatchIdsRequest
 from app.schemas.common import PaginatedResult, RiskScore
@@ -46,6 +48,7 @@ def list_alerts(
     detection_type: Optional[str] = Query(None, alias="detectionType"),
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100, alias="pageSize"),
+    _: UserModel = Depends(require_permission(Permission.ALERTS_VIEW)),
     db: Session = Depends(get_db),
 ):
     query = db.query(AlertModel)
@@ -90,7 +93,11 @@ def list_alerts(
 
 
 @router.post("/batch", response_model=List[SecurityAlert])
-def get_alerts_by_ids_post(request: BatchIdsRequest, db: Session = Depends(get_db)):
+def get_alerts_by_ids_post(
+    request: BatchIdsRequest,
+    _: UserModel = Depends(require_permission(Permission.ALERTS_VIEW)),
+    db: Session = Depends(get_db),
+):
     if not request.ids:
         return []
     alerts = db.query(AlertModel).filter(AlertModel.id.in_(request.ids)).all()
@@ -98,7 +105,11 @@ def get_alerts_by_ids_post(request: BatchIdsRequest, db: Session = Depends(get_d
 
 
 @router.get("/batch", response_model=List[SecurityAlert])
-def get_alerts_by_ids_get(ids: str = Query(""), db: Session = Depends(get_db)):
+def get_alerts_by_ids_get(
+    ids: str = Query(""),
+    _: UserModel = Depends(require_permission(Permission.ALERTS_VIEW)),
+    db: Session = Depends(get_db),
+):
     id_list = [i.strip() for i in ids.split(",") if i.strip()]
     if not id_list:
         return []
@@ -107,7 +118,11 @@ def get_alerts_by_ids_get(ids: str = Query(""), db: Session = Depends(get_db)):
 
 
 @router.get("/{alert_id}", response_model=SecurityAlert)
-def get_alert_by_id(alert_id: str, db: Session = Depends(get_db)):
+def get_alert_by_id(
+    alert_id: str,
+    _: UserModel = Depends(require_permission(Permission.ALERTS_VIEW)),
+    db: Session = Depends(get_db),
+):
     alert = db.query(AlertModel).filter(AlertModel.id == alert_id).first()
     if not alert:
         raise HTTPException(status_code=404, detail=f"Alert {alert_id} not found")
@@ -115,7 +130,12 @@ def get_alert_by_id(alert_id: str, db: Session = Depends(get_db)):
 
 
 @router.patch("/{alert_id}", response_model=SecurityAlert)
-def update_alert_status(alert_id: str, update: AlertStatusUpdate, db: Session = Depends(get_db)):
+def update_alert_status(
+    alert_id: str,
+    update: AlertStatusUpdate,
+    _: UserModel = Depends(require_permission(Permission.ALERTS_UPDATE)),
+    db: Session = Depends(get_db),
+):
     alert = db.query(AlertModel).filter(AlertModel.id == alert_id).first()
     if not alert:
         raise HTTPException(status_code=404, detail=f"Alert {alert_id} not found")

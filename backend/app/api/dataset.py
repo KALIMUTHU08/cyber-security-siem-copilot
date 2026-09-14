@@ -18,8 +18,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.deps import get_current_user
+from app.core.permissions import Permission, require_permission
 from app.database.session import SessionLocal, get_db
 from app.ingestion.dataset_adapter import stream_dataset_chunks, get_dataset_info
+from app.models.user import UserModel
 from app.services.siem_pipeline import run_pipeline_on_records
 from app.services.dataset_status_service import (
     get_persistent_seed_status,
@@ -97,13 +100,17 @@ def _seed_worker(csv_path: str, limit: int, chunk_size: int, reset: bool, batch_
 
 
 @router.get("/info")
-def dataset_info():
+def dataset_info(_: UserModel = Depends(get_current_user)):
     info = get_dataset_info(_DEFAULT_CSV)
     return info
 
 
 @router.post("/seed")
-def seed_dataset(req: SeedRequest, db: Session = Depends(get_db)):
+def seed_dataset(
+    req: SeedRequest,
+    _: UserModel = Depends(require_permission(Permission.LOGS_INGEST)),
+    db: Session = Depends(get_db),
+):
     status = get_persistent_seed_status(db)
     if status.get("running"):
         raise HTTPException(status_code=409, detail="Seed already in progress")
@@ -139,13 +146,16 @@ def seed_dataset(req: SeedRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/status")
-def seed_status(db: Session = Depends(get_db)):
+def seed_status(
+    _: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Retrieve current seeding status backed persistently by SQLite."""
     return get_persistent_seed_status(db)
 
 
 @router.get("/evaluate")
-def evaluate_detection():
+def evaluate_detection(_: UserModel = Depends(require_permission(Permission.LOGS_VIEW))):
     """Run TP/FP/FN/TN evaluation against ground truth labels."""
     try:
         import sys

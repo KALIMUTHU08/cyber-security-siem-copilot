@@ -150,12 +150,51 @@ export interface CopilotMessage {
   response?: CopilotResponse;
 }
 
+export type ResponseActionType = 'BLOCK_IP' | 'ADD_WATCHLIST_IP' | 'INCREASE_MONITORING' | 'LOCK_ACCOUNT' | 'ISOLATE_HOST';
+
+export type ResponseActionStatus =
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'EXECUTING'
+  | 'EXECUTED'
+  | 'REJECTED'
+  | 'FAILED'
+  | 'EXPIRED'
+  | 'CANCELLED';
+
+export interface ResponseAction {
+  id: string;
+  incidentId: string;
+  actionType: ResponseActionType;
+  parameters: Record<string, any>;
+  status: ResponseActionStatus;
+  recommendedBy?: string;
+  recommendedAt: string;
+  copilotReasoning?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  executedBy?: string;
+  executedAt?: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SuggestedResponseAction {
+  actionType: ResponseActionType;
+  parameters: Record<string, any>;
+  reasoning: string;
+}
+
 export interface CopilotResponse {
   leadIn: string;              // e.g. "Analysis based on 47 related security events"
   eventCount?: number;
   observedEvidence: string[];
   aiAssessment: string;
   recommendedNextSteps: string[];
+  suggestedResponseActions?: SuggestedResponseAction[];
 }
 
 export type ThreatHuntStatus = 'idle' | 'running' | 'done' | 'error';
@@ -277,3 +316,5 @@ export interface LogFilter {
   startDate?: string;
   endDate?: string;
 }
+
+export * from './auth';

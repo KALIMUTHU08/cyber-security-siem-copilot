@@ -1,6 +1,7 @@
 from typing import List, Optional
 from app.copilot.provider import LLMProvider
 from app.schemas.copilot import CopilotResponse
+from app.schemas.response_action import SuggestedResponseAction
 from app.models.incident import IncidentModel
 from app.models.log import SecurityLogModel
 
@@ -158,12 +159,44 @@ class DeterministicTemplateProvider(LLMProvider):
                         f"Continue triage on {incident.id} and preserve system audit logs for forensic review.",
                     ]
 
+            suggested_actions: List[SuggestedResponseAction] = []
+            if incident.source_ip and incident.source_ip != "N/A":
+                suggested_actions.append(
+                    SuggestedResponseAction(
+                        action_type="BLOCK_IP",
+                        parameters={"ip": incident.source_ip, "duration_seconds": 86400},
+                        reasoning=f"Inbound traffic from source IP {incident.source_ip} associated with incident {incident.id}. Blocking at perimeter pending analyst verification.",
+                    )
+                )
+            if incident.target_user and (has_auth_failure or has_auth_success):
+                suggested_actions.append(
+                    SuggestedResponseAction(
+                        action_type="LOCK_ACCOUNT",
+                        parameters={"username": incident.target_user, "duration_seconds": 3600},
+                        reasoning=f"Suspicious authentication activity detected for user account '{incident.target_user}'. Temporary lock recommended pending confirmation.",
+                    )
+                )
+            if has_scanner and incident.source_ip and incident.source_ip != "N/A":
+                suggested_actions.append(
+                    SuggestedResponseAction(
+                        action_type="ADD_WATCHLIST_IP",
+                        parameters={"ip": incident.source_ip},
+                        reasoning=f"Add reconnaissance scanner IP {incident.source_ip} to watchlist for heightened monitoring.",
+                    )
+                )
+
+            if suggested_actions:
+                approval_notice = "Recommended actions require human analyst review and approval before execution."
+                if approval_notice not in recommendations:
+                    recommendations.append(approval_notice)
+
             return CopilotResponse(
                 lead_in=lead_in,
                 event_count=event_count,
                 observed_evidence=observed[:6],
                 ai_assessment=ai_assessment,
                 recommended_next_steps=recommendations,
+                suggested_response_actions=suggested_actions,
             )
 
         # General query without incident context

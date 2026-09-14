@@ -79,6 +79,25 @@ class Settings(BaseSettings):
     # Database (SQLite default; set DATABASE_URL for Postgres in production)
     DATABASE_URL: str = "sqlite:///./siem_copilot.db"
 
+    # -----------------------------------------------------------------------
+    # Authentication / JWT
+    # -----------------------------------------------------------------------
+    # IMPORTANT: Set a strong, random SECRET_KEY in production via environment
+    # variable. The default below is ONLY for local development. Never commit
+    # a real secret to source code.
+    SECRET_KEY: str = "dev-insecure-change-me-set-SECRET_KEY-in-env"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    # Initial admin account seeded on first startup (empty DB only).
+    # Supply real values via env vars; never hardcode credentials in source.
+    DEFAULT_ADMIN_EMAIL: str = "admin@siem.local"
+    DEFAULT_ADMIN_PASSWORD: str = ""  # MUST be set via DEFAULT_ADMIN_PASSWORD env var
+
+    # Login brute-force protection: max failures before 5-minute lockout
+    LOGIN_MAX_FAILURES: int = 5
+    LOGIN_LOCKOUT_SECONDS: int = 300
+
     # Optional LLM (deterministic template fallback used when empty)
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: str = ""

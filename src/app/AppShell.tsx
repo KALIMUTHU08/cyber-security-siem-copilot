@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar, type TimeRange } from './TopBar';
 
@@ -14,10 +14,28 @@ import { CopilotPage } from '../features/copilot/CopilotPage';
 import { LogsPage } from '../features/logs/LogsPage';
 import { AnalyticsPage } from '../features/analytics/AnalyticsPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
+import { UserManagementPage } from '../features/admin/UserManagementPage';
+import { AuditLogPage } from '../features/admin/AuditLogPage';
+import { LoginPage } from '../features/auth/LoginPage';
 import { ErrorBoundary } from '../components/ui';
+import { useAuth } from '../contexts/AuthContext';
 
 export function AppShell() {
   const [timeRange, setTimeRange] = useState<TimeRange>('Last 24 hours');
+  const { isAuthenticated, isLoading, hasPermission } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#080B11] text-slate-300">
+        <div className="w-10 h-10 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin mb-4" />
+        <p className="text-xs font-mono text-cyan-400">Verifying security session...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   return (
     <div className="flex h-screen min-h-screen bg-bg-app">
@@ -38,6 +56,14 @@ export function AppShell() {
                 <Route path="/logs" element={<LogsPage />} />
                 <Route path="/analytics" element={<AnalyticsPage timeRange={timeRange} />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route
+                  path="/admin/users"
+                  element={hasPermission('users.view') ? <UserManagementPage /> : <Navigate to="/" replace />}
+                />
+                <Route
+                  path="/admin/audit"
+                  element={hasPermission('audit.view') ? <AuditLogPage /> : <Navigate to="/" replace />}
+                />
               </Routes>
             </ErrorBoundary>
           </div>

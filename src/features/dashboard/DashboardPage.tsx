@@ -63,6 +63,7 @@ export function DashboardPage({ timeRange: _timeRange }: DashboardPageProps) {
   const alerts = useAsync(() => siemService.getAlerts(undefined, 1, 8), []);
   const incidents = useAsync(() => siemService.getIncidents(1, 5), []);
   const analytics = useAsync(() => siemService.getAnalytics(7), []);
+  const blocklist = useAsync(() => siemService.getBlocklist(), []);
 
   if (stats.status === 'error') return <ErrorState message="Failed to load dashboard" detail={stats.error.message} onRetry={stats.refetch} />;
   if (analytics.status === 'error') return <ErrorState message="Failed to load analytics" detail={analytics.error.message} onRetry={analytics.refetch} />;
@@ -295,6 +296,31 @@ export function DashboardPage({ timeRange: _timeRange }: DashboardPageProps) {
                   {c.latencyMs && (
                     <span className="text-2xs font-mono text-text-muted">{c.latencyMs}ms</span>
                   )}
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          {/* Defensive Blocklist Panel */}
+          <Panel>
+            <PanelHeader
+              title="Perimeter Blocklist"
+              subtitle="Active simulated defenses"
+            />
+            <div className="px-3 py-2 space-y-1.5">
+              {blocklist.status === 'loading' && <LoadingState size="sm" />}
+              {(!blocklist.data || blocklist.data.length === 0) && (
+                <p className="text-2xs text-text-muted py-2">No active IP blocks.</p>
+              )}
+              {blocklist.data?.slice(0, 4).map((b) => (
+                <div key={b.id} className="flex items-center justify-between p-2 rounded bg-bg-elevated border border-border-subtle text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                    <span className="font-mono text-text-primary text-[11px]">{b.ip}</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-text-muted uppercase px-1.5 py-0.5 rounded bg-bg-app border border-border-subtle">
+                    {b.status}
+                  </span>
                 </div>
               ))}
             </div>

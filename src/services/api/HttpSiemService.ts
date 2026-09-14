@@ -16,6 +16,14 @@ import type {
   AlertFilter,
   LogFilter,
   PaginatedResult,
+  ResponseAction,
+  ResponseActionType,
+  AuthUser,
+  TokenResponse,
+  UserCreateData,
+  UserUpdateData,
+  AuditLogEntry,
+  BlocklistEntry,
 } from '../../types';
 
 export class HttpSiemService implements SiemService {
@@ -27,9 +35,11 @@ export class HttpSiemService implements SiemService {
 
   private async request<T>(path: string, options?: RequestInit): Promise<T> {
     const url = `${this.baseUrl}/api${path}`;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('siem_auth_token') : null;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options?.headers as Record<string, string> | undefined),
     };
 
@@ -165,5 +175,120 @@ export class HttpSiemService implements SiemService {
   // Analytics
   async getAnalytics(days: number): Promise<AnalyticsData> {
     return this.request<AnalyticsData>(`/analytics?days=${days}`);
+  }
+
+  // Auth & Profile
+  async login(email: string, password: string): Promise<TokenResponse> {
+    return this.request<TokenResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
+  async getMe(): Promise<TokenResponse> {
+    return this.request<TokenResponse>('/auth/me');
+  }
+
+  async logout(): Promise<void> {
+    try {
+      await this.request<void>('/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore
+    }
+  }
+
+  // Response Actions
+  async getResponseActions(incidentId: string): Promise<ResponseAction[]> {
+    const res = await this.request<ResponseAction[]>(`/incidents/${encodeURIComponent(incidentId)}/response-actions`);
+    return res || [];
+  }
+
+  async createResponseAction(
+    incidentId: string,
+    action: {
+      actionType: ResponseActionType;
+      parameters: Record<string, any>;
+      notes?: string;
+      copilotReasoning?: string;
+    }
+  ): Promise<ResponseAction> {
+    return this.request<ResponseAction>(`/incidents/${encodeURIComponent(incidentId)}/response-actions`, {
+      method: 'POST',
+      body: JSON.stringify(action),
+    });
+  }
+
+  async approveResponseAction(incidentId: string, actionId: string, notes?: string): Promise<ResponseAction> {
+    return this.request<ResponseAction>(
+      `/incidents/${encodeURIComponent(incidentId)}/response-actions/${encodeURIComponent(actionId)}/approve`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ notes: notes || '' }),
+      }
+    );
+  }
+
+  async rejectResponseAction(incidentId: string, actionId: string, notes?: string): Promise<ResponseAction> {
+    return this.request<ResponseAction>(
+      `/incidents/${encodeURIComponent(incidentId)}/response-actions/${encodeURIComponent(actionId)}/reject`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ notes: notes || '' }),
+      }
+    );
+  }
+
+  async executeResponseAction(incidentId: string, actionId: string): Promise<ResponseAction> {
+    return this.request<ResponseAction>(
+      `/incidents/${encodeURIComponent(incidentId)}/response-actions/${encodeURIComponent(actionId)}/execute`,
+      {
+        method: 'POST',
+      }
+    );
+  }
+
+  // Admin: User Management
+  async getUsers(): Promise<AuthUser[]> {
+    const res = await this.request<AuthUser[]>('/auth/users');
+    return res || [];
+  }
+
+  async createUser(data: UserCreateData): Promise<AuthUser> {
+    return this.request<AuthUser>('/auth/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateUser(id: string, data: UserUpdateData): Promise<AuthUser> {
+    return this.request<AuthUser>(`/auth/users/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Admin: Audit Logs
+  async getAuditLogs(params?: {
+    action?: string;
+    userId?: string;
+    result?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<AuditLogEntry[]> {
+    const q = new URLSearchParams();
+    if (params?.action) q.set('action', params.action);
+    if (params?.userId) q.set('userId', params.userId);
+    if (params?.result) q.set('result', params.result);
+    if (params?.page) q.set('page', String(params.page));
+    if (params?.pageSize) q.set('pageSize', String(params.pageSize));
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    const res = await this.request<AuditLogEntry[]>(`/audit-logs${qs}`);
+    return res || [];
+  }
+
+  // Blocklist
+  async getBlocklist(): Promise<BlocklistEntry[]> {
+    const res = await this.request<BlocklistEntry[]>('/blocklist');
+    return res || [];
   }
 }

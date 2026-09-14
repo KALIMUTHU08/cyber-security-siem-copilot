@@ -19,6 +19,14 @@ import type {
   AlertFilter,
   LogFilter,
   PaginatedResult,
+  ResponseAction,
+  ResponseActionType,
+  AuthUser,
+  TokenResponse,
+  UserCreateData,
+  UserUpdateData,
+  AuditLogEntry,
+  BlocklistEntry,
 } from '../../types';
 import {
   MOCK_LOGS,
@@ -421,5 +429,168 @@ export class MockSiemService implements SiemService {
   async getAnalytics(days: number): Promise<AnalyticsData> {
     await delay(400);
     return generateAnalytics(days);
+  }
+
+  // Auth & Profile
+  async login(email: string, _password: string): Promise<TokenResponse> {
+    await delay(300);
+    return {
+      accessToken: 'mock-jwt-token',
+      tokenType: 'bearer',
+      user: {
+        id: 'user-001',
+        email,
+        fullName: 'SOC Operator',
+        role: 'ADMIN',
+        isActive: true,
+      },
+      permissions: ['*'],
+    };
+  }
+
+  async getMe(): Promise<TokenResponse> {
+    await delay(100);
+    return {
+      accessToken: 'mock-jwt-token',
+      tokenType: 'bearer',
+      user: {
+        id: 'user-001',
+        email: 'admin@siem.local',
+        fullName: 'Default Administrator',
+        role: 'ADMIN',
+        isActive: true,
+      },
+      permissions: ['*'],
+    };
+  }
+
+  async logout(): Promise<void> {
+    await delay(100);
+  }
+
+  // Response Actions
+  async getResponseActions(_incidentId: string): Promise<ResponseAction[]> {
+    await delay(200);
+    return [];
+  }
+
+  async createResponseAction(
+    incidentId: string,
+    action: {
+      actionType: ResponseActionType;
+      parameters: Record<string, any>;
+      notes?: string;
+      copilotReasoning?: string;
+    }
+  ): Promise<ResponseAction> {
+    await delay(300);
+    return {
+      id: `act-${Date.now()}`,
+      incidentId,
+      actionType: action.actionType,
+      parameters: action.parameters,
+      status: 'PENDING_APPROVAL',
+      recommendedAt: new Date().toISOString(),
+      notes: action.notes || '',
+      copilotReasoning: action.copilotReasoning,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  async approveResponseAction(incidentId: string, actionId: string, notes?: string): Promise<ResponseAction> {
+    await delay(200);
+    return {
+      id: actionId,
+      incidentId,
+      actionType: 'BLOCK_IP',
+      parameters: {},
+      status: 'APPROVED',
+      recommendedAt: new Date().toISOString(),
+      approvedAt: new Date().toISOString(),
+      notes: notes || '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  async rejectResponseAction(incidentId: string, actionId: string, notes?: string): Promise<ResponseAction> {
+    await delay(200);
+    return {
+      id: actionId,
+      incidentId,
+      actionType: 'BLOCK_IP',
+      parameters: {},
+      status: 'REJECTED',
+      recommendedAt: new Date().toISOString(),
+      rejectedAt: new Date().toISOString(),
+      notes: notes || '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  async executeResponseAction(incidentId: string, actionId: string): Promise<ResponseAction> {
+    await delay(300);
+    return {
+      id: actionId,
+      incidentId,
+      actionType: 'BLOCK_IP',
+      parameters: {},
+      status: 'EXECUTED',
+      recommendedAt: new Date().toISOString(),
+      executedAt: new Date().toISOString(),
+      notes: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  // Admin: User Management
+  async getUsers(): Promise<AuthUser[]> {
+    await delay(200);
+    return [
+      {
+        id: 'user-001',
+        email: 'admin@siem.local',
+        fullName: 'Default Administrator',
+        role: 'ADMIN',
+        isActive: true,
+      },
+    ];
+  }
+
+  async createUser(data: UserCreateData): Promise<AuthUser> {
+    await delay(300);
+    return {
+      id: `user-${Date.now()}`,
+      email: data.email,
+      fullName: data.fullName,
+      role: data.role,
+      isActive: true,
+    };
+  }
+
+  async updateUser(id: string, data: UserUpdateData): Promise<AuthUser> {
+    await delay(200);
+    return {
+      id,
+      email: 'user@siem.local',
+      fullName: data.fullName || 'User',
+      role: data.role || 'SECURITY_ANALYST',
+      isActive: data.isActive !== undefined ? data.isActive : true,
+    };
+  }
+
+  // Admin: Audit Logs
+  async getAuditLogs(): Promise<AuditLogEntry[]> {
+    await delay(200);
+    return [];
+  }
+
+  // Blocklist
+  async getBlocklist(): Promise<BlocklistEntry[]> {
+    await delay(200);
+    return [];
   }
 }

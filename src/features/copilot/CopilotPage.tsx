@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Send, Bot, User, Brain } from 'lucide-react';
+import { Send, Bot, User, Brain, ArrowRight, ShieldAlert } from 'lucide-react';
 import { siemService } from '../../services';
 import { useAsync } from '../../hooks/useAsync';
 import {
@@ -16,6 +16,7 @@ import type { CopilotMessage } from '../../types';
 
 // Single Copilot message bubble
 function CopilotMessageBubble({ message }: { message: CopilotMessage }) {
+  const navigate = useNavigate();
   const isAnalyst = message.role === 'analyst';
 
   if (isAnalyst) {
@@ -62,6 +63,46 @@ function CopilotMessageBubble({ message }: { message: CopilotMessage }) {
             <ObservedEvidenceBlock items={r.observedEvidence} />
             <AiAssessmentBlock content={r.aiAssessment} />
             <RecommendationsBlock items={r.recommendedNextSteps} />
+
+            {r.suggestedResponseActions && r.suggestedResponseActions.length > 0 && (
+              <div className="p-3 rounded-xl bg-slate-950/80 border border-cyan-500/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-400 uppercase tracking-wide">
+                    <ShieldAlert size={14} />
+                    <span>AI Suggested Response Actions</span>
+                  </div>
+                  <span className="text-[10px] text-amber-400 font-medium">Analyst Review Required</span>
+                </div>
+
+                <p className="text-2xs text-slate-400 leading-relaxed">
+                  Recommended actions require human analyst review and approval before execution.
+                </p>
+
+                <div className="space-y-1.5">
+                  {r.suggestedResponseActions.map((s, idx) => (
+                    <div key={idx} className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+                      <div className="flex items-center justify-between font-mono text-[11px] mb-0.5">
+                        <span className="font-bold text-cyan-300">{s.actionType}</span>
+                        <span className="text-slate-400 text-2xs">{JSON.stringify(s.parameters)}</span>
+                      </div>
+                      <p className="text-slate-300 text-2xs leading-relaxed">{s.reasoning}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {message.incidentId && (
+                  <div className="pt-1 flex items-center justify-end">
+                    <button
+                      onClick={() => navigate(`/incidents/${message.incidentId}`)}
+                      className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors cursor-pointer font-medium"
+                    >
+                      <span>View &amp; Propose in Incident</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-ai-subtle border border-ai-muted rounded-md px-3 py-2.5">

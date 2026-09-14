@@ -20,6 +20,14 @@ import type {
   AlertFilter,
   LogFilter,
   PaginatedResult,
+  ResponseAction,
+  ResponseActionType,
+  AuthUser,
+  TokenResponse,
+  UserCreateData,
+  UserUpdateData,
+  AuditLogEntry,
+  BlocklistEntry,
 } from '../types';
 
 export interface SiemService {
@@ -53,4 +61,41 @@ export interface SiemService {
 
   // Analytics
   getAnalytics(days: number): Promise<AnalyticsData>;
+
+  // Auth & Profile
+  login(email: string, password: string): Promise<TokenResponse>;
+  getMe(): Promise<TokenResponse>;
+  logout(): Promise<void>;
+
+  // Response Actions
+  getResponseActions(incidentId: string): Promise<ResponseAction[]>;
+  createResponseAction(
+    incidentId: string,
+    action: {
+      actionType: ResponseActionType;
+      parameters: Record<string, any>;
+      notes?: string;
+      copilotReasoning?: string;
+    }
+  ): Promise<ResponseAction>;
+  approveResponseAction(incidentId: string, actionId: string, notes?: string): Promise<ResponseAction>;
+  rejectResponseAction(incidentId: string, actionId: string, notes?: string): Promise<ResponseAction>;
+  executeResponseAction(incidentId: string, actionId: string): Promise<ResponseAction>;
+
+  // Admin: User Management
+  getUsers(): Promise<AuthUser[]>;
+  createUser(data: UserCreateData): Promise<AuthUser>;
+  updateUser(id: string, data: UserUpdateData): Promise<AuthUser>;
+
+  // Admin: Audit Logs
+  getAuditLogs(params?: {
+    action?: string;
+    userId?: string;
+    result?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<AuditLogEntry[]>;
+
+  // Blocklist
+  getBlocklist(): Promise<BlocklistEntry[]>;
 }

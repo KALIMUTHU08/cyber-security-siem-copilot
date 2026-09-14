@@ -4,6 +4,9 @@ from pydantic import field_serializer
 from app.schemas.common import CamelModel
 
 
+from app.schemas.response_action import SuggestedResponseAction
+
+
 class CopilotChatRequest(CamelModel):
     message: str
     incident_id: Optional[str] = None
@@ -15,6 +18,7 @@ class CopilotResponse(CamelModel):
     observed_evidence: List[str] = []
     ai_assessment: str
     recommended_next_steps: List[str] = []
+    suggested_response_actions: List[SuggestedResponseAction] = []
 
 
 class CopilotMessage(CamelModel):

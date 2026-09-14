@@ -1,0 +1,14 @@
+# Local environment
+.env
+.env.local
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Local logs generated during demo runs
+logs/
+*.jsonl
+*.log
