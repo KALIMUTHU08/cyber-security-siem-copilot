@@ -249,7 +249,7 @@ export function IncidentDetailPage() {
               variant="primary"
               size="sm"
               leftIcon={<Bot size={14} />}
-              onClick={() => navigate('/copilot', { state: { incidentId: incident.id } })}
+              onClick={() => navigate(`/copilot?incidentId=${encodeURIComponent(incident.id)}`, { state: { incidentId: incident.id } })}
             >
               Ask Copilot
             </Button>
@@ -422,7 +422,7 @@ export function IncidentDetailPage() {
           {/* Quick copilot CTA */}
           <div
             className="p-4 rounded-md border border-ai-muted bg-ai-subtle cursor-pointer hover:border-ai/50 transition-colors"
-            onClick={() => navigate('/copilot', { state: { incidentId: incident.id } })}
+            onClick={() => navigate(`/copilot?incidentId=${encodeURIComponent(incident.id)}`, { state: { incidentId: incident.id } })}
           >
             <div className="flex items-center gap-2 mb-2">
               <Bot size={14} className="text-ai" />

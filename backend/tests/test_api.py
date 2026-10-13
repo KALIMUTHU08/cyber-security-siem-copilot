@@ -273,6 +273,155 @@ def test_copilot_evidence_grounding_single_scanner_alert(client, db_session):
     assert "consider blocking or restricting" in recs
     assert "after analyst validation" in recs
 
+
+def test_copilot_general_analysis_explicit_mode(client):
+    """When no incident is selected, Copilot operates in explicit General Analysis Mode."""
+    res = client.post(
+        "/api/copilot/chat",
+        json={"message": "What is our current security posture?"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["incidentId"] is None
+    resp = data["response"]
+    assert "general security posture telemetry" in resp["leadIn"].lower()
+    assert "general security analysis mode" in resp["aiAssessment"].lower()
+    assert len(resp["suggestedResponseActions"]) == 0
+
+
+def test_copilot_invalid_incident_id_returns_404(client):
+    """When an invalid or nonexistent incident ID is supplied, return 404 rather than silent fallback."""
+    res = client.post(
+        "/api/copilot/chat",
+        json={"message": "Analyze this incident", "incidentId": "INC-NONEXISTENT-999"},
+    )
+    assert res.status_code == 404
+    err = res.json()
+    assert "INC-NONEXISTENT-999" in err["detail"]
+    assert "not found" in err["detail"].lower()
+
+
+def test_copilot_brute_force_incident_evidence_grounding(client, db_session):
+    """Verify evidence grounding for a 15-event brute force attack against dummy-target-portal."""
+    inc_id = "INC-BF-TEST-10004"
+    source_ip = "198.51.100.90"
+    target_user = "admin"
+    device = "dummy-target-portal"
+
+    alert_id = "alert-bf-test-1"
+    alert = AlertModel(
+        id=alert_id,
+        detection_rule_id="rule-001",
+        detection_rule_name="Brute Force Authentication Sequence",
+        title=f"Brute Force Authentication Sequence — {source_ip}",
+        matching_summary="10 failed attempts within 4 seconds",
+        severity="HIGH",
+        status="NEW",
+        source_ip=source_ip,
+        username=target_user,
+        device=device,
+        match_count=10,
+        risk_score=40,
+        risk_level="MEDIUM",
+        first_seen=datetime.utcnow(),
+        last_seen=datetime.utcnow(),
+    )
+
+    log_ids = []
+    logs = []
+    for i in range(10):
+        lid = f"log-bf-{i}"
+        log_ids.append(lid)
+        logs.append(
+            SecurityLogModel(
+                id=lid,
+                timestamp=datetime.utcnow(),
+                source_ip=source_ip,
+                destination_ip="127.0.0.1",
+                username=target_user,
+                event_type="LOGIN_FAILED",
+                status="FAILURE",
+                device=device,
+                raw_log=f"Simulated brute force failed attempt {i+1} for user {target_user} from {source_ip}",
+            )
+        )
+
+    inc = IncidentModel(
+        id=inc_id,
+        title=f"Correlated Security Incident on {device}",
+        severity="HIGH",
+        status="OPEN",
+        risk_score=40,
+        risk_level="MEDIUM",
+        source_ip=source_ip,
+        target_user=target_user,
+        affected_device=device,
+        first_seen=datetime.utcnow(),
+        last_seen=datetime.utcnow(),
+        summary=f"Correlated incident involving 1 alert and 10 security events on {device}.",
+        attack_vector="Correlated Suspicious Behavioral Events",
+        related_alert_ids=[alert_id],
+        related_log_ids=log_ids,
+        observed_evidence=[
+            f"Alert 'Brute Force Authentication Sequence — {source_ip}': 10 failed attempts within 4 seconds (Source: {source_ip})"
+        ],
+        ai_assessment="",
+        recommended_next_steps=[],
+    )
+
+    db_session.add(alert)
+    db_session.add_all(logs)
+    db_session.add(inc)
+    db_session.commit()
+
+    # Query Copilot with the user prompt
+    prompt = (
+        "Analyze this brute-force incident. Summarize the evidence, explain why it was detected, "
+        "identify the source IP and affected account, and recommend an appropriate containment action. "
+        "Do not execute any response action automatically. Require analyst approval before execution."
+    )
+    res = client.post(
+        "/api/copilot/chat",
+        json={"message": prompt, "incidentId": inc_id},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["incidentId"] == inc_id
+
+    resp = data["response"]
+    assert resp["eventCount"] == 10
+    assert inc_id in resp["leadIn"]
+
+    # Verify observed evidence includes key facts
+    evidence_text = " ".join(resp["observedEvidence"])
+    assert source_ip in evidence_text
+    assert target_user in evidence_text
+
+    # Verify AI assessment contains facts, inferences, missing info
+    assessment = resp["aiAssessment"]
+    assert "Observed Facts:" in assessment
+    assert "Inferences:" in assessment
+    assert "Missing Information:" in assessment
+    assert source_ip in assessment
+    assert target_user in assessment
+    assert "Rule-001" in assessment or "rule-001" in assessment.lower()
+    assert "HIGH" in assessment
+
+    # Verify recommendations and advisory nature
+    recs_text = " ".join(resp["recommendedNextSteps"])
+    assert "BLOCK_IP" in recs_text or "blocking source ip" in recs_text.lower()
+    assert "analyst" in recs_text.lower()
+    assert "approval" in recs_text.lower() or "authorization" in recs_text.lower()
+
+    # Verify suggested containment actions
+    actions = resp["suggestedResponseActions"]
+    assert len(actions) >= 1
+    block_action = next((a for a in actions if a["actionType"] == "BLOCK_IP"), None)
+    assert block_action is not None
+    assert block_action["parameters"]["ip"] == source_ip
+    assert "perimeter" in block_action["reasoning"].lower()
+
+
 # ---------------------------------------------------------------------------
 # CORS configuration tests
 # ---------------------------------------------------------------------------

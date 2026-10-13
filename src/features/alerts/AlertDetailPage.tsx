@@ -63,7 +63,15 @@ export function AlertDetailPage() {
                 variant="secondary"
                 size="sm"
                 leftIcon={<Bot size={14} />}
-                onClick={() => navigate('/copilot')}
+                onClick={() => {
+                  if (alert.relatedIncidentId) {
+                    navigate(`/copilot?incidentId=${encodeURIComponent(alert.relatedIncidentId)}`, {
+                      state: { incidentId: alert.relatedIncidentId },
+                    });
+                  } else {
+                    navigate('/copilot');
+                  }
+                }}
               >
                 Ask Copilot
               </Button>

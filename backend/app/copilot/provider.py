@@ -12,5 +12,6 @@ class LLMProvider(ABC):
         question: str,
         incident: Optional[IncidentModel] = None,
         evidence_logs: Optional[List[SecurityLogModel]] = None,
+        alerts: Optional[List] = None,
     ) -> CopilotResponse:
         pass

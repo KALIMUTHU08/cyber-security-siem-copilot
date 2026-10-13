@@ -3,12 +3,15 @@ from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
+from fastapi import HTTPException
+
 from app.copilot.provider import LLMProvider
 from app.copilot.openai_provider import OpenAIProvider
 from app.copilot.template_provider import DeterministicTemplateProvider
 from app.models.copilot import CopilotMessageModel
 from app.models.incident import IncidentModel
 from app.models.log import SecurityLogModel
+from app.models.alert import AlertModel
 from app.schemas.copilot import CopilotMessage, CopilotResponse
 from app.core.config import settings
 
@@ -30,41 +33,57 @@ class CopilotService:
         message: str,
         incident_id: Optional[str] = None,
     ) -> CopilotMessage:
-        # 1. Save Analyst message
+        clean_incident_id = incident_id.strip() if incident_id and incident_id.strip() else None
+
+        # 1. Fetch and validate context if incident_id provided
+        incident = None
+        evidence_logs = None
+        related_alerts = None
+        if clean_incident_id:
+            incident = db.query(IncidentModel).filter(IncidentModel.id == clean_incident_id).first()
+            if not incident:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Incident '{clean_incident_id}' not found. Cannot perform evidence-grounded analysis.",
+                )
+            if incident.related_log_ids:
+                evidence_logs = (
+                    db.query(SecurityLogModel)
+                    .filter(SecurityLogModel.id.in_(incident.related_log_ids[:20]))
+                    .order_by(SecurityLogModel.timestamp.asc())
+                    .all()
+                )
+            if incident.related_alert_ids:
+                related_alerts = (
+                    db.query(AlertModel)
+                    .filter(AlertModel.id.in_(incident.related_alert_ids))
+                    .order_by(AlertModel.first_seen.asc())
+                    .all()
+                )
+
+        # 2. Save Analyst message
         analyst_id = f"msg-{int(datetime.utcnow().timestamp() * 1000)}"
         analyst_msg = CopilotMessageModel(
             id=analyst_id,
             role="analyst",
             content=message,
             timestamp=datetime.utcnow(),
-            incident_id=incident_id,
+            incident_id=clean_incident_id,
         )
         db.add(analyst_msg)
         db.flush()
-
-        # 2. Fetch context if incident_id provided
-        incident = None
-        evidence_logs = None
-        if incident_id:
-            incident = db.query(IncidentModel).filter(IncidentModel.id == incident_id).first()
-            if incident and incident.related_log_ids:
-                evidence_logs = (
-                    db.query(SecurityLogModel)
-                    .filter(SecurityLogModel.id.in_(incident.related_log_ids[:8]))
-                    .all()
-                )
 
         # 3. Generate response via LLM or graceful fallback
         response: Optional[CopilotResponse] = None
         if self.llm_provider:
             try:
-                response = self.llm_provider.generate_response(message, incident, evidence_logs)
+                response = self.llm_provider.generate_response(message, incident, evidence_logs, alerts=related_alerts)
             except Exception as e:
                 # Log or note LLM error and fall back gracefully
                 pass
 
         if not response:
-            response = self.template_provider.generate_response(message, incident, evidence_logs)
+            response = self.template_provider.generate_response(message, incident, evidence_logs, alerts=related_alerts)
 
         # 4. Save Copilot response message
         copilot_id = f"msg-{int(datetime.utcnow().timestamp() * 1000) + 1}"
@@ -73,7 +92,7 @@ class CopilotService:
             role="copilot",
             content=response.lead_in,
             timestamp=datetime.utcnow(),
-            incident_id=incident_id,
+            incident_id=clean_incident_id,
             response_lead_in=response.lead_in,
             response_event_count=response.event_count,
             response_observed_evidence=response.observed_evidence,

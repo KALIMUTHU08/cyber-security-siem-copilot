@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Send, Bot, User, Brain, ArrowRight, ShieldAlert } from 'lucide-react';
 import { siemService } from '../../services';
 import { useAsync } from '../../hooks/useAsync';
@@ -146,19 +146,49 @@ function AnalyzingIndicator() {
 export function CopilotPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const routeIncidentId = (location.state as { incidentId?: string } | undefined)?.incidentId ?? null;
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Read incident ID from URL query params first (?incidentId=...), then location.state
+  const queryIncidentId = searchParams.get('incidentId')?.trim() || null;
+  const stateIncidentId = ((location.state as { incidentId?: string } | undefined)?.incidentId)?.trim() || null;
+  const initialIncidentId = queryIncidentId || stateIncidentId || null;
 
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [activeIncidentId, setActiveIncidentId] = useState<string | null>(routeIncidentId);
+  const [activeIncidentId, setActiveIncidentId] = useState<string | null>(initialIncidentId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: incidents } = useAsync(() => siemService.getIncidents(1, 10), []);
-  const { data: activeIncident } = useAsync(
+  const {
+    data: activeIncident,
+    error: activeIncidentError,
+    status: activeIncidentStatus,
+  } = useAsync(
     () => (activeIncidentId ? siemService.getIncidentById(activeIncidentId) : Promise.resolve(null)),
     [activeIncidentId],
   );
+
+  // Synchronize route/query changes into active incident state
+  useEffect(() => {
+    const qId = searchParams.get('incidentId')?.trim() || null;
+    const sId = ((location.state as { incidentId?: string } | undefined)?.incidentId)?.trim() || null;
+    const target = qId || sId || null;
+    if (target !== activeIncidentId) {
+      setActiveIncidentId(target);
+      setMessages([]);
+    }
+  }, [searchParams, location.state]);
+
+  const handleSelectIncident = useCallback((id: string | null) => {
+    setActiveIncidentId(id);
+    setMessages([]);
+    if (id) {
+      setSearchParams({ incidentId: id });
+    } else {
+      setSearchParams({});
+    }
+  }, [setSearchParams]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -183,12 +213,12 @@ export function CopilotPage() {
     try {
       const response = await siemService.sendCopilotMessage(text, activeIncidentId ?? undefined);
       setMessages((prev) => [...prev, response]);
-    } catch {
-      // error message
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred while analyzing your query.';
       const errMsg: CopilotMessage = {
         id: `err-${Date.now()}`,
         role: 'copilot',
-        content: 'An error occurred while analyzing your query. Please try again.',
+        content: `Investigation Error: ${errorMsg}`,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errMsg]);
@@ -225,7 +255,7 @@ export function CopilotPage() {
           <div className="px-3 py-2 space-y-1.5 max-h-72 overflow-y-auto">
             {/* General scope option */}
             <button
-              onClick={() => { setActiveIncidentId(null); setMessages([]); }}
+              onClick={() => handleSelectIncident(null)}
               className={`w-full text-left p-2 rounded text-xs transition-colors ${
                 activeIncidentId === null
                   ? 'bg-accent-subtle border border-accent/30 text-accent font-medium'
@@ -242,7 +272,7 @@ export function CopilotPage() {
             {incidents?.items.map((inc) => (
               <button
                 key={inc.id}
-                onClick={() => { setActiveIncidentId(inc.id); setMessages([]); }}
+                onClick={() => handleSelectIncident(inc.id)}
                 className={`w-full text-left p-2 rounded text-xs transition-colors ${
                   activeIncidentId === inc.id
                     ? 'bg-accent-subtle border border-accent/30 text-accent'
@@ -273,10 +303,28 @@ export function CopilotPage() {
               </div>
               <button
                 onClick={() => navigate(`/incidents/${activeIncident.id}`)}
-                className="mt-3 w-full text-xs text-accent hover:underline text-left"
+                className="mt-3 w-full text-xs text-accent hover:underline text-left cursor-pointer"
               >
                 View full investigation →
               </button>
+            </div>
+          </Panel>
+        ) : activeIncidentId && activeIncidentStatus === 'error' ? (
+          <Panel className="border-red-500/40 bg-red-950/20">
+            <div className="p-3">
+              <div className="text-2xs text-red-400 uppercase tracking-wide mb-1 font-semibold">Incident Not Found</div>
+              <p className="text-xs font-mono text-red-300 mb-2">{activeIncidentId}</p>
+              <p className="text-2xs text-text-muted leading-relaxed mb-3">
+                {activeIncidentError?.message || `Incident ${activeIncidentId} could not be found or is inaccessible in the active database.`}
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full text-2xs"
+                onClick={() => handleSelectIncident(null)}
+              >
+                Reset to General Posture
+              </Button>
             </div>
           </Panel>
         ) : (
@@ -305,7 +353,9 @@ export function CopilotPage() {
           </div>
           <div className="ml-auto flex items-center gap-2">
             <span className="text-2xs text-text-muted bg-bg-elevated border border-border-subtle px-2 py-0.5 rounded font-mono">
-              {activeIncidentId ? `Context: ${activeIncidentId}` : 'Context: General Analysis'}
+              {activeIncidentId
+                ? (activeIncidentStatus === 'error' ? `Context: ${activeIncidentId} (Not Found)` : `Context: ${activeIncidentId}`)
+                : 'Context: General Analysis'}
             </span>
             <div className="flex items-center gap-1.5 text-2xs text-low-text bg-low-bg border border-low-border px-2 py-0.5 rounded">
               <span className="w-1.5 h-1.5 rounded-full bg-low-DEFAULT animate-pulse-slow" />
@@ -322,17 +372,33 @@ export function CopilotPage() {
                 <Bot size={22} className="text-ai" />
               </div>
               {activeIncidentId ? (
-                <>
-                  <h3 className="text-sm font-medium text-text-primary mb-1">Incident Copilot: {activeIncidentId}</h3>
-                  <p className="text-xs text-text-secondary max-w-sm leading-relaxed">
-                    Ask questions about {activeIncidentId}. Responses are strictly grounded in observed evidence, detection rules, and timeline telemetry.
-                  </p>
-                  {activeIncident && (
-                    <div className="mt-4 px-3 py-2 bg-bg-elevated border border-border-subtle rounded text-xs text-text-secondary">
-                      Context: <span className="font-mono text-accent">{activeIncidentId}</span> — {pluralize(activeIncident.relatedLogIds.length, 'event', 'events')} correlated
-                    </div>
-                  )}
-                </>
+                activeIncidentStatus === 'error' ? (
+                  <>
+                    <h3 className="text-sm font-medium text-critical mb-1">Incident Not Found: {activeIncidentId}</h3>
+                    <p className="text-xs text-text-secondary max-w-sm leading-relaxed mb-3">
+                      The specified incident could not be found or is inaccessible in the database. Copilot cannot ground analysis in non-existent telemetry.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleSelectIncident(null)}
+                    >
+                      Switch to General Posture Mode
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-sm font-medium text-text-primary mb-1">Incident Copilot: {activeIncidentId}</h3>
+                    <p className="text-xs text-text-secondary max-w-sm leading-relaxed">
+                      Ask questions about {activeIncidentId}. Responses are strictly grounded in observed evidence, detection rules, and timeline telemetry.
+                    </p>
+                    {activeIncident && (
+                      <div className="mt-4 px-3 py-2 bg-bg-elevated border border-border-subtle rounded text-xs text-text-secondary">
+                        Context: <span className="font-mono text-accent">{activeIncidentId}</span> — {pluralize(activeIncident.relatedLogIds.length, 'event', 'events')} correlated
+                      </div>
+                    )}
+                  </>
+                )
               ) : (
                 <>
                   <h3 className="text-sm font-medium text-text-primary mb-1">SIEM Copilot (General Security Analysis)</h3>
